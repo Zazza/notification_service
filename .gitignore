@@ -7,16 +7,16 @@
 .env.local
 .env.*.local
 
-app/vendor/
-app/storage/framework/cache/
-app/storage/framework/sessions/
-app/storage/framework/views/
-app/storage/logs/*
-!app/storage/logs/.gitignore
-app/bootstrap/cache/*
-!app/bootstrap/cache/.gitignore
-app/.phpunit.result.cache
-app/phpunit.xml
+src/vendor/
+src/storage/framework/cache/
+src/storage/framework/sessions/
+src/storage/framework/views/
+src/storage/logs/*
+!src/storage/logs/.gitignore
+src/bootstrap/cache/*
+!src/bootstrap/cache/.gitignore
+src/.phpunit.result.cache
+src/phpunit.xml
 
 *.log
 *.cache

@@ -1,0 +1,358 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Broadcast Notification Service API",
+        "description": "API для массовой отправки уведомлений (SMS/Email) с поддержкой очередей RabbitMQ, дедупликации через Redis и CQRS",
+        "contact": {
+            "email": "dev@broadcast-service.local"
+        },
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "http://localhost",
+            "description": "API Server"
+        }
+    ],
+    "paths": {
+        "/api/notifications/bulk": {
+            "post": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Массовая отправка уведомлений",
+                "description": "Создаёт уведомления для списка получателей и ставит их в очередь на отправку",
+                "operationId": "8f049eb35c7af93e83229da631722126",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "channel",
+                                    "priority",
+                                    "recipient_ids",
+                                    "content"
+                                ],
+                                "properties": {
+                                    "channel": {
+                                        "description": "Канал отправки",
+                                        "type": "string",
+                                        "example": "email",
+                                        "enum": [
+                                            "sms",
+                                            "email"
+                                        ]
+                                    },
+                                    "priority": {
+                                        "description": "Приоритет уведомления",
+                                        "type": "string",
+                                        "example": "normal",
+                                        "enum": [
+                                            "high",
+                                            "normal",
+                                            "low"
+                                        ]
+                                    },
+                                    "recipient_ids": {
+                                        "description": "Список ID получателей",
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "example": [
+                                            "user-001",
+                                            "user-002",
+                                            "user-003"
+                                        ]
+                                    },
+                                    "content": {
+                                        "description": "Текст уведомления",
+                                        "type": "string",
+                                        "example": "Ваш заказ успешно оформлен!",
+                                        "maxLength": 5000
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "202": {
+                        "description": "Уведомления успешно поставлены в очередь",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Notifications queued successfully"
+                                        },
+                                        "total": {
+                                            "type": "integer",
+                                            "example": 3
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "string",
+                                                        "format": "uuid",
+                                                        "example": "550e8400-e29b-41d4-a716-446655440000"
+                                                    },
+                                                    "channel": {
+                                                        "type": "string",
+                                                        "example": "email"
+                                                    },
+                                                    "priority": {
+                                                        "type": "string",
+                                                        "example": "normal"
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "example": "pending"
+                                                    },
+                                                    "recipient_id": {
+                                                        "type": "string",
+                                                        "example": "user-001"
+                                                    },
+                                                    "content": {
+                                                        "type": "string",
+                                                        "example": "Ваш заказ успешно оформлен!"
+                                                    },
+                                                    "error_message": {
+                                                        "type": "string",
+                                                        "example": null,
+                                                        "nullable": true
+                                                    },
+                                                    "gateway_id": {
+                                                        "type": "string",
+                                                        "example": null,
+                                                        "nullable": true
+                                                    },
+                                                    "retry_count": {
+                                                        "type": "integer",
+                                                        "example": 0
+                                                    },
+                                                    "sent_at": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "example": null,
+                                                        "nullable": true
+                                                    },
+                                                    "delivered_at": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "example": null,
+                                                        "nullable": true
+                                                    },
+                                                    "created_at": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "example": "2026-06-09T12:00:00Z"
+                                                    },
+                                                    "updated_at": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "example": "2026-06-09T12:00:00Z"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Дубликат уведомления",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Duplicate notification"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Notification already exists for this recipient"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Ошибка валидации",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "The channel field is required."
+                                        },
+                                        "errors": {
+                                            "properties": {
+                                                "channel": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string",
+                                                        "example": "Канал обязателен"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/notifications/subscriber/{recipientId}": {
+            "get": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Получить уведомления подписчика",
+                "description": "Возвращает список всех уведомлений для указанного получателя с опциональной фильтрацией по статусу",
+                "operationId": "5f7b0a3d9908f06291d3a98a2f5cdd04",
+                "parameters": [
+                    {
+                        "name": "recipientId",
+                        "in": "path",
+                        "description": "ID получателя",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Фильтр по статусу уведомления",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "pending",
+                                "sent",
+                                "delivered",
+                                "failed"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Список уведомлений",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "recipient_id": {
+                                            "type": "string",
+                                            "example": "user-001"
+                                        },
+                                        "total": {
+                                            "type": "integer",
+                                            "example": 2
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "string",
+                                                        "format": "uuid",
+                                                        "example": "550e8400-e29b-41d4-a716-446655440000"
+                                                    },
+                                                    "channel": {
+                                                        "type": "string",
+                                                        "example": "email"
+                                                    },
+                                                    "priority": {
+                                                        "type": "string",
+                                                        "example": "normal"
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "example": "sent"
+                                                    },
+                                                    "recipient_id": {
+                                                        "type": "string",
+                                                        "example": "user-001"
+                                                    },
+                                                    "content": {
+                                                        "type": "string",
+                                                        "example": "Ваш заказ успешно оформлен!"
+                                                    },
+                                                    "error_message": {
+                                                        "type": "string",
+                                                        "example": null,
+                                                        "nullable": true
+                                                    },
+                                                    "gateway_id": {
+                                                        "type": "string",
+                                                        "example": "msg-abc123",
+                                                        "nullable": true
+                                                    },
+                                                    "retry_count": {
+                                                        "type": "integer",
+                                                        "example": 0
+                                                    },
+                                                    "sent_at": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "example": "2026-06-09T12:01:00Z"
+                                                    },
+                                                    "delivered_at": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "example": null,
+                                                        "nullable": true
+                                                    },
+                                                    "created_at": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "example": "2026-06-09T12:00:00Z"
+                                                    },
+                                                    "updated_at": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "example": "2026-06-09T12:01:00Z"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Получатель не найден"
+                    }
+                }
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Notifications",
+            "description": "Управление уведомлениями"
+        }
+    ]
+}
